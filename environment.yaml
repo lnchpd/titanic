@@ -30,4 +30,3 @@ dependencies:
 - xz=5.2.2=1
 - zlib=1.2.8=3
 prefix: /Users/justin/anaconda3/envs/py3
-
