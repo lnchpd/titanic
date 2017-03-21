@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 #READ DATA IN FROM FILE
 data = pd.read_csv('titanic_data.csv')
@@ -51,13 +52,6 @@ for cur_input in continuous_inputs:
 #Drop missing data
 data = data.dropna()
 
-#randomly segment out training data vs test data
-np.random.seed(99)
-sample = np.random.choice(data.index, size=int(len(data)*0.9), replace=False)
-data, test_data = data.ix[sample], data.drop(sample)
-
 #separate targets from inputs (targeting survival!)
-targets = data['Survived']
-inputs = data.drop('Survived', axis=1)
-test_targets = test_data['Survived']
-test_inputs = test_data.drop('Survived', axis=1)
+inputs, test_inputs, targets, test_targets = \
+    train_test_split(data.drop('Survived', axis=1), data['Survived'], test_size = 0.15)

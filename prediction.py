@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import matplotlib as plt
+
+import sklearn.metrics as skmetrics
+
 from clean_data import targets, test_targets, inputs, test_inputs
 
 np.random.seed(1234)
@@ -48,44 +51,40 @@ class NeuralNetwork(object):
         #input to the hidden node is the weights * inputs, respectively
         #transpose the weights since record_input is simply a 1x14 array
         #input results in a 1x2 array
-        hidden_in = np.dot(self.weights_i2h.T, record_input)
+        self.hidden_in = np.dot(self.weights_i2h.T, record_input)
 
         #apply the activation function of the hidden node
-        hidden_out = self.hidden_f(hidden_in)
+        self.hidden_out = self.hidden_f(self.hidden_in)
 
         #input to the output node is the weights * hidden_out; once again must transpose
-        output_in = np.dot(self.weights_h2o.T, hidden_out)
+        self.output_in = np.dot(self.weights_h2o.T, self.hidden_out)
 
         #apply the activation function of the output node
-        output_out = self.output_f(output_in)
+        self.output_out = self.output_f(self.output_in)
 
         #calculate error
-        error = record_target - output_out
+        self.error = record_target - self.output_out
 
         #calculate the squared error
-        sse = 0.5 * (error **2) / n_records
-
-        return hidden_in, hidden_out, output_in, output_out, error, sse
+        self.sse = 0.5 * (self.error **2) / n_records
 
     #train the network on a single record with a forward pass and a backpropogation
     def train(self, record_input, record_target):
-        hidden_in, hidden_out, output_in, output_out, error, sse = self.forward_pass(record_input, record_target)
+        self.forward_pass(record_input, record_target)
 
         #determine the effect of inputs to the output node on the error
-        output_error = error * self.output_fp(output_in)
+        output_error = self.error * self.output_fp(self.output_in)
 
         #determine the effect of inputs to the hidden node on the error (using chain rule)
-        hidden_error = output_error * self.weights_h2o.T * self.hidden_fp(hidden_in)
+        hidden_error = output_error * self.weights_h2o.T * self.hidden_fp(self.hidden_in)
 
         #update the weights incrementally
-        self.weights_h2o += self.learning_rate * hidden_out[:,None] * output_error
+        self.weights_h2o += self.learning_rate * self.hidden_out[:,None] * output_error
         self.weights_i2h += self.learning_rate * record_input[:,None] * hidden_error
-
-        return sse
 
 #define hyperparameters for the neural network
 LEARNING_RATE = .1
-EPOCHS = 500
+EPOCHS = 50
 HIDDEN_NODES = 7
 
 #determine number of records and number of inputs from the data
@@ -96,30 +95,36 @@ n_test_records = test_inputs.shape[0]
 #define the neural network
 nn = NeuralNetwork(n_inputs, HIDDEN_NODES, n_targets, LEARNING_RATE)
 
-#for each epoch
-for i in range(EPOCHS):
+def run():
+    #for each epoch
+    for i in range(EPOCHS):
 
-    error_rate = 0
+        error_rate = 0
 
-    #for each record in the training set
-    for x, y in zip(inputs.values, targets):
+        #for each record in the training set
+        for x, y in zip(inputs.values, targets):
 
-        #train the model and record the error rate
-        error_rate += nn.train(x, y)
+            #train the model and record the error rate
+            nn.train(x, y)
+            error_rate += nn.sse
 
-    print(error_rate)
+        print(error_rate)
 
-#print accuracy of results for validation data
-right_answers = 0
+def test():
 
-#for each record in the test set
-for a, b in zip(test_inputs.values, test_targets):
+    test_output = []
 
-    #run a forward pass through the network
-    hidden_in, hidden_out, output_in, output_out, error, sse = nn.forward_pass(a, b)
+    #for each record in the test set
+    for a, b in zip(test_inputs.values, test_targets):
 
-    #if the model is right (binary 1 or 0 prediction)
-    if abs(error) < 0.5:
-        right_answers += 1
+        #run a forward pass through the network
+        nn.forward_pass(a, b)
 
-print('Accuracy: ', round(right_answers/n_test_records,2))
+        #round to 0 or 1 and record output for accuracy test
+        test_output.append(round(nn.output_out[0],0))
+
+    print('Accuracy: ', skmetrics.accuracy_score(test_targets, test_output))
+    print(skmetrics.confusion_matrix(test_targets, test_output))
+
+run()
+test()
